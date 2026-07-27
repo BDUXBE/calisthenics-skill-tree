@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Calisthenics Skill Tree</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg:#0d0d10;
+  --surface:#16161b;
+  --surface2:#1e1e25;
+  --line:#2a2a31;
+  --chalk:#eae7df;
+  --muted:#7a7a84;
+  --muted2:#54545c;
+  --amber:#e8a23a;
+  --amber-soft:rgba(232,162,58,.16);
+  --amber-glow:rgba(232,162,58,.65);
+  --teal:#35c9a6;
+  --teal-soft:rgba(53,201,166,.16);
+  --teal-glow:rgba(53,201,166,.6);
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--chalk);font-family:'Inter',sans-serif;}
+body{
+  min-height:100vh;
+  background-image:
+    radial-gradient(circle at 15% 8%, rgba(232,162,58,.05), transparent 40%),
+    radial-gradient(circle at 85% 92%, rgba(53,201,166,.05), transparent 40%);
+}
+button{font-family:inherit; -webkit-appearance:none; appearance:none; border:none; background:none; color:inherit; cursor:pointer;}
+.eyebrow{font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:.14em; font-size:11px; color:var(--muted);}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* ---------- Header ---------- */
+header.topbar{
+  padding:22px 18px 14px;
+  border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:20;
+  background:rgba(13,13,16,.92);
+  backdrop-filter:blur(6px);
+}
+.titleRow{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
+h1{
+  font-family:'Oswald',sans-serif; font-weight:700; text-transform:uppercase;
+  letter-spacing:.03em; font-size:20px; margin:2px 0 0;
+}
+.resetBtn{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; padding:6px 4px; border-radius:6px;}
+.resetBtn:active{background:var(--surface2);}
+.resetBtn.confirming{color:var(--amber);}
+
+.overallWrap{margin-top:14px;}
+.overallLabel{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:6px;}
+.overallLabel strong{color:var(--chalk); font-family:'JetBrains Mono',monospace; font-weight:600;}
+.barTrack{height:6px; border-radius:4px; background:var(--surface2); overflow:hidden;}
+.barFill{height:100%; border-radius:4px; background:linear-gradient(90deg,var(--amber),var(--teal)); transition:width .5s ease;}
+
+/* ---------- Tabs ---------- */
+.tabs{
+  display:flex; gap:6px; padding:12px 14px; overflow-x:auto;
+  border-bottom:1px solid var(--line); scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{
+  flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:9px 13px; border-radius:12px; background:var(--surface);
+  border:1px solid var(--line); min-width:66px;
+}
+.tab svg{width:17px; height:17px; stroke:var(--muted); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+.tab .tabName{font-family:'Oswald',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);}
+.tab .tabFrac{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted2);}
+.tab.active{background:var(--amber-soft); border-color:var(--amber);}
+.tab.active svg{stroke:var(--amber);}
+.tab.active .tabName{color:var(--chalk);}
+.tab.active .tabFrac{color:var(--amber);}
+
+/* ---------- Category header ---------- */
+.catHeader{padding:16px 18px 4px;}
+.catTitleRow{display:flex; align-items:center; gap:9px;}
+.catIcon{width:26px; height:26px; stroke:var(--amber); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;}
+.catIcon.filled{fill:var(--amber); stroke:none;}
+.catTitle{font-family:'Oswald',sans-serif; font-weight:600; font-size:17px; text-transform:uppercase; letter-spacing:.02em;}
+.catBlurb{font-size:12.5px; color:var(--muted); margin:6px 0 2px; line-height:1.5;}
+.catProgress{font-size:11px; color:var(--muted2); font-family:'JetBrains Mono',monospace; margin-bottom:6px;}
+
+.legend{display:flex; flex-wrap:wrap; gap:12px; padding:6px 18px 10px; font-size:10.5px; color:var(--muted);}
+.legend span{display:inline-flex; align-items:center; gap:5px;}
+.dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+.dot.locked{background:var(--muted2);}
+.dot.available{background:var(--amber); box-shadow:0 0 6px var(--amber-glow);}
+.dot.completed{background:var(--teal); box-shadow:0 0 6px var(--teal-glow);}
+
+/* ---------- Tree ---------- */
+.treeWrap{position:relative; padding:6px 12px 40px;}
+svg#connectors{position:absolute; top:0; left:0; width:100%; height:100%; overflow:visible; z-index:1; pointer-events:none;}
+.treeGrid{
+  position:relative; z-index:2;
+  display:grid; grid-template-columns:repeat(3,1fr);
+  grid-auto-rows:122px;
+  justify-items:center;
+}
+.node{
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding-top:4px; width:100%;
+}
+.hex{
+  width:58px; height:58px;
+  clip-path:polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0% 50%);
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface2); border:1px solid var(--line);
+  transition:transform .15s ease, box-shadow .25s ease, background .25s ease;
+}
+.hex svg{width:20px; height:20px; stroke-width:2;}
+.node.locked .hex{background:var(--surface); }
+.node.locked .hex svg{stroke:var(--muted2); fill:var(--muted2);}
+.node.available .hex{background:var(--amber-soft); border-color:var(--amber); box-shadow:0 0 14px var(--amber-glow);}
+.node.available .hex svg{stroke:var(--amber); fill:none;}
+.node.completed .hex{background:var(--teal-soft); border-color:var(--teal); box-shadow:0 0 14px var(--teal-glow);}
+.node.completed .hex svg{stroke:var(--teal); fill:none;}
+.node:active .hex{transform:scale(.92);}
+.node:focus-visible .hex{outline:2px solid var(--chalk); outline-offset:3px;}
+.nodeLabel{
+  font-size:10.5px; line-height:1.25; text-align:center; color:var(--muted);
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+  max-width:98px;
+}
+.node.available .nodeLabel,.node.completed .nodeLabel{color:var(--chalk);}
+
+@media (prefers-reduced-motion: no-preference){
+  .node.available .hex{animation:pulse 2.6s ease-in-out infinite;}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 10px var(--amber-glow);}
+    50%{box-shadow:0 0 20px var(--amber-glow);}
+  }
+}
+
+/* ---------- Sheet ---------- */
+.backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:29;
+  opacity:0; pointer-events:none; transition:opacity .25s ease;
+}
+.backdrop.open{opacity:1; pointer-events:auto;}
+.sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  background:var(--surface); border-top:1px solid var(--line);
+  border-radius:18px 18px 0 0;
+  padding:16px 20px calc(22px + env(safe-area-inset-bottom));
+  max-height:66vh; overflow-y:auto;
+  transform:translateY(102%); transition:transform .3s cubic-bezier(.2,.9,.3,1);
+  box-shadow:0 -12px 40px rgba(0,0,0,.4);
+}
+.sheet.open{transform:translateY(0);}
+.sheetTopRow{display:flex; justify-content:flex-end;}
+.sheetClose{width:28px; height:28px; border-radius:50%; background:var(--surface2); color:var(--muted); font-size:14px; display:flex; align-items:center; justify-content:center;}
+.sheetEyebrow{font-family:'Oswald',sans-serif; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:2px;}
+.sheetTitle{font-family:'Oswald',sans-serif; font-weight:600; font-size:21px; margin:5px 0 8px; text-transform:uppercase;}
+.sheetStatus{display:inline-block; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; padding:4px 9px; border-radius:20px; margin-bottom:12px; font-family:'JetBrains Mono',monospace;}
+.sheetStatus.locked{background:var(--surface2); color:var(--muted);}
+.sheetStatus.available{background:var(--amber-soft); color:var(--amber);}
+.sheetStatus.completed{background:var(--teal-soft); color:var(--teal);}
+.sheetTarget{display:flex; align-items:baseline; gap:8px; margin-bottom:10px;}
+.sheetTarget span{font-size:10px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase;}
+.sheetTarget strong{font-family:'JetBrains Mono',monospace; font-size:16px; color:var(--chalk);}
+.sheetTip{font-size:13.5px; line-height:1.55; color:var(--muted); margin:0 0 14px;}
+.sheetReq{font-size:12.5px; color:var(--muted); background:var(--surface2); border-radius:10px; padding:10px 12px; line-height:1.5;}
+.sheetReq strong{color:var(--chalk); font-weight:600;}
+.sheetAction{
+  width:100%; padding:13px; border-radius:12px; font-family:'Oswald',sans-serif;
+  font-size:13px; letter-spacing:.05em; text-transform:uppercase; font-weight:600;
+  text-align:center;
+}
+.sheetAction.do{background:var(--amber); color:#1a1204;}
+.sheetAction.undo{background:var(--surface2); color:var(--muted); border:1px solid var(--line);}
+.sheetAction:active{transform:scale(.98);}
+
+footer.hint{text-align:center; font-size:11px; color:var(--muted2); padding:6px 20px 26px;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="titleRow">
+    <div>
+      <div class="eyebrow">Calisthenics Progression</div>
+      <h1>Skill Tree</h1>
+    </div>
+    <button class="resetBtn" id="resetBtn">Reset progress</button>
+  </div>
+  <div class="overallWrap">
+    <div class="overallLabel"><span>Overall mastery</span><strong id="overallText">0 / 0 · 0%</strong></div>
+    <div class="barTrack"><div class="barFill" id="overallBar" style="width:0%"></div></div>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs"></nav>
+
+<main>
+  <div class="catHeader" id="catHeader"></div>
+  <div class="legend">
+    <span><i class="dot locked"></i>Locked</span>
+    <span><i class="dot available"></i>Ready to train</span>
+    <span><i class="dot completed"></i>Mastered</span>
+  </div>
+  <div class="treeWrap" id="treeWrap">
+    <svg id="connectors"></svg>
+    <div class="treeGrid" id="treeGrid"></div>
+  </div>
+</main>
+
+<footer class="hint">Tap any skill to see the target, form cues, and what it unlocks.</footer>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheetTopRow"><button class="sheetClose" id="sheetClose">&#10005;</button></div>
+  <div id="sheetContent"></div>
+</div>
+
+<script>
+(function(){
+
+/* ---------------- ICONS ---------------- */
+const ICONS = {
+  push:   '<path d="M12 4v15M7 9l5-5 5 5"/>',
+  pull:   '<path d="M12 19V4M7 14l5 5 5-5"/>',
+  core:   '<path d="M12 3l7.5 4.3v9.4L12 21l-7.5-4.3V7.3z"/>',
+  legs:   '<path d="M5 4l7 16 7-16"/>',
+  balance:'<path d="M12 21V3M6 9l6-6 6 6M8 21h8"/>',
+  skills: '<path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor" stroke="none"/>'
+};
+const LOCK = '<path d="M7 10V7.5a5 5 0 0110 0V10M6 10h12v10H6z"/>';
+const CHECK = '<path d="M4 12.5l5.5 5.5L20 6"/>';
+
+/* ---------------- DATA ---------------- */
+const categories = [
+  { id:'push', name:'Push', icon:'push',
+    blurb:'Chest, shoulder and tricep pressing power — the road to the planche.',
+    nodes:[
+      {id:'p_knee', name:'Knee Push-up', tier:0, col:1, prereq:[], target:'3×12', tip:'Knees down, straight line from head to knees. Builds the base pressing pattern.'},
+      {id:'p_pushup', name:'Push-up', tier:1, col:1, prereq:['p_knee'], target:'3×10', tip:'Full plank, chest to floor, elbows around 45°. The foundation for everything above.'},
+      {id:'p_diamond', name:'Diamond Push-up', tier:2, col:0, prereq:['p_pushup'], target:'3×8', tip:'Hands together under the chest. Builds the tricep lockout strength planche work needs.'},
+      {id:'p_decline', name:'Decline Push-up', tier:2, col:2, prereq:['p_pushup'], target:'3×10', tip:'Feet elevated on a bench, shifting extra load forward onto the shoulders.'},
+      {id:'p_pplanche', name:'Pseudo Planche Push-up', tier:3, col:1, prereq:['p_diamond','p_decline'], target:'3×8', tip:'Hands by the hips, lean forward hard. The first true planche-specific drill.'},
+      {id:'p_tuck', name:'Tuck Planche', tier:4, col:1, prereq:['p_pplanche'], target:'3×10s', tip:'Knees tucked to the chest, hips high, shoulders pressed past the hands.'},
+      {id:'p_advtuck', name:'Advanced Tuck Planche', tier:5, col:1, prereq:['p_tuck'], target:'3×8s', tip:'Same shape as the tuck but hips open slightly, knees drifting away from the chest.'},
+      {id:'p_straddle', name:'Straddle Planche', tier:6, col:1, prereq:['p_advtuck'], target:'3×5s', tip:'Legs straight and wide. A large jump in leverage and overall difficulty.'},
+      {id:'p_full', name:'Full Planche', tier:7, col:1, prereq:['p_straddle'], target:'3×3s', tip:'Legs straight and together — the elite-level static pressing skill.'}
+    ]
+  },
+  { id:'pull', name:'Pull', icon:'pull',
+    blurb:'Back and bicep pulling strength — pull-ups, muscle-ups and the front lever.',
+    nodes:[
+      {id:'u_hang', name:'Dead Hang', tier:0, col:1, prereq:[], target:'30s', tip:'Full grip hang from the bar with active shoulders. Builds grip and shoulder health.'},
+      {id:'u_scap', name:'Scapular Pull-up', tier:1, col:1, prereq:['u_hang'], target:'3×8', tip:'Pull the shoulder blades down and together without bending the elbows.'},
+      {id:'u_neg', name:'Negative Pull-up', tier:2, col:1, prereq:['u_scap'], target:'3×5 (5s each)', tip:'Jump to chin over the bar, then lower yourself down as slowly as you can.'},
+      {id:'u_pu1', name:'Pull-up (1 rep)', tier:3, col:1, prereq:['u_neg'], target:'1 rep', tip:'Full dead hang to chin over the bar, strict form with no kipping.'},
+      {id:'u_pu10', name:'Pull-up (10 reps)', tier:4, col:1, prereq:['u_pu1'], target:'10 reps', tip:'Strict form, full range, every rep. The gateway to every advanced pulling skill.'},
+      {id:'u_archer', name:'Archer Pull-up', tier:5, col:0, prereq:['u_pu10'], target:'3×5/side', tip:'One arm bends and pulls while the other stays straight out to the side.'},
+      {id:'u_muscleup', name:'Muscle-up', tier:5, col:1, prereq:['u_pu10'], target:'1 rep', tip:'An explosive pull-up that transitions over the bar and finishes in a dip.'},
+      {id:'u_flt', name:'Front Lever Tuck', tier:5, col:2, prereq:['u_pu10'], target:'3×10s', tip:'Hang horizontal with knees tucked tight to the chest, body parallel to the floor.'},
+      {id:'u_typewriter', name:'Typewriter Pull-up', tier:6, col:0, prereq:['u_archer'], target:'3×4/side', tip:'Shift side to side at the top of a pull-up, chin staying over the bar throughout.'},
+      {id:'u_wmu', name:'Weighted Muscle-up', tier:6, col:1, prereq:['u_muscleup'], target:'+10% BW', tip:'Add light extra weight once bodyweight muscle-ups feel controlled and clean.'},
+      {id:'u_flat', name:'Front Lever Adv. Tuck', tier:6, col:2, prereq:['u_flt'], target:'3×8s', tip:'One leg extends out while hips open a little further than the basic tuck.'},
+      {id:'u_oaa', name:'One-Arm Pull-up (assisted)', tier:7, col:0, prereq:['u_typewriter'], target:'3×3/side', tip:'Band- or towel-assisted single-arm pulling, building toward the full skill.'},
+      {id:'u_fls', name:'Front Lever Straddle', tier:7, col:2, prereq:['u_flat'], target:'3×6s', tip:'Legs straight and wide, body flat and fully horizontal.'},
+      {id:'u_oap', name:'One-Arm Pull-up', tier:8, col:0, prereq:['u_oaa'], target:'1 rep', tip:'The single hardest pulling skill in calisthenics — years in the making.'},
+      {id:'u_ffl', name:'Full Front Lever', tier:8, col:2, prereq:['u_fls'], target:'3×5s', tip:'Legs straight and together, perfectly horizontal — a true strength benchmark.'}
+    ]
+  },
+  { id:'core', name:'Core', icon:'core',
+    blurb:'Midline control and compression strength — hollow body to the manna.',
+    nodes:[
+      {id:'c_hollow', name:'Hollow Body Hold', tier:0, col:1, prereq:[], target:'30s', tip:'Lower back pressed to the floor, arms and legs extended, ribs pulled down.'},
+      {id:'c_plank', name:'Plank', tier:1, col:0, prereq:['c_hollow'], target:'60s', tip:'Straight line from shoulders to ankles, glutes and core braced hard.'},
+      {id:'c_hkr', name:'Hanging Knee Raise', tier:1, col:2, prereq:['c_hollow'], target:'3×12', tip:'Hang from the bar and curl the knees up to hip height without swinging.'},
+      {id:'c_hlr', name:'Hanging Leg Raise', tier:2, col:2, prereq:['c_hkr'], target:'3×10', tip:'Same movement as the knee raise, but the legs stay straight throughout.'},
+      {id:'c_lsit', name:'L-sit', tier:3, col:1, prereq:['c_plank','c_hlr'], target:'3×10s', tip:'Support on hands or parallettes, legs held straight out at hip height.'},
+      {id:'c_vsit', name:'V-sit', tier:4, col:1, prereq:['c_lsit'], target:'3×5s', tip:'From the L-sit, raise the legs further up toward vertical.'},
+      {id:'c_manna', name:'Manna', tier:5, col:1, prereq:['c_vsit'], target:'1–2s', tip:'Legs raised past vertical toward the head — one of the rarest core skills there is.'}
+    ]
+  },
+  { id:'legs', name:'Legs', icon:'legs',
+    blurb:'Single-leg strength and control — squats to the pistol and shrimp squat.',
+    nodes:[
+      {id:'l_squat', name:'Bodyweight Squat', tier:0, col:1, prereq:[], target:'3×20', tip:'Hips travel below the knees, chest tall, full depth on every rep.'},
+      {id:'l_split', name:'Split Squat', tier:1, col:0, prereq:['l_squat'], target:'3×12/side', tip:'Rear foot elevated is optional — builds single-leg base strength.'},
+      {id:'l_sissy', name:'Sissy Squat', tier:1, col:2, prereq:['l_squat'], target:'3×8', tip:'Lean back on the toes as the knees travel forward, torso staying straight.'},
+      {id:'l_bulg', name:'Bulgarian Split Squat', tier:2, col:0, prereq:['l_split'], target:'3×10/side', tip:'Rear foot up on a bench — a big range of motion and a big quad demand.'},
+      {id:'l_nle', name:'Natural Leg Extension', tier:2, col:2, prereq:['l_sissy'], target:'3×6', tip:'Kneeling, lower the torso back using only the quads to control the descent.'},
+      {id:'l_apistol', name:'Assisted Pistol Squat', tier:3, col:0, prereq:['l_bulg'], target:'3×6/side', tip:'Hold a post or strap for balance while sitting to full depth on one leg.'},
+      {id:'l_pistol', name:'Pistol Squat', tier:4, col:0, prereq:['l_apistol'], target:'3×5/side', tip:'Free-standing single-leg squat to full depth, other leg held out in front.'},
+      {id:'l_shrimp', name:'Shrimp Squat', tier:5, col:0, prereq:['l_pistol'], target:'3×5/side', tip:'Rear foot held behind you — demands serious quad strength and balance.'}
+    ]
+  },
+  { id:'balance', name:'Balance', icon:'balance',
+    blurb:'Handstand strength and body control — wall drills to the one-arm handstand.',
+    nodes:[
+      {id:'b_wallchest', name:'Wall Handstand (chest-to-wall)', tier:0, col:1, prereq:[], target:'30s', tip:'Face the wall, kick up, chest close to it. Builds shoulder and wrist tolerance.'},
+      {id:'b_wallback', name:'Wall Handstand (back-to-wall)', tier:1, col:1, prereq:['b_wallchest'], target:'45s', tip:'Back to the wall so you can see your hands — this trains real balance.'},
+      {id:'b_hspuwall', name:'Handstand Push-up (wall)', tier:2, col:0, prereq:['b_wallback'], target:'3×5', tip:'Lower the head to the floor and press back up, wall assisting your balance.'},
+      {id:'b_kickup', name:'Freestanding Kick-up', tier:2, col:2, prereq:['b_wallback'], target:'10 attempts', tip:'Practice kicking up to a controlled handstand away from any wall.'},
+      {id:'b_90', name:'90° Push-up', tier:3, col:0, prereq:['b_hspuwall'], target:'3×3', tip:'The head travels forward past the hands, not straight down — bridges toward the planche.'},
+      {id:'b_free10', name:'Freestanding Handstand (10s)', tier:3, col:2, prereq:['b_kickup'], target:'10s', tip:'Balance away from any wall using small finger and wrist adjustments.'},
+      {id:'b_freehspu', name:'Freestanding HSPU', tier:4, col:1, prereq:['b_90','b_free10'], target:'1 rep', tip:'A full handstand push-up with no wall for balance or support.'},
+      {id:'b_oah', name:'One-Arm Handstand', tier:5, col:1, prereq:['b_freehspu'], target:'3–5s', tip:'The pinnacle of handstand training — years of balance work distilled into one arm.'}
+    ]
+  },
+  { id:'skills', name:'Skills', icon:'skills',
+    blurb:'Advanced static and dynamic elements — back lever, muscle-up and human flag.',
+    nodes:[
+      {id:'s_bltuck', name:'Back Lever Tuck', tier:0, col:0, prereq:[], target:'3×10s', tip:'Hang inverted with the knees tucked, body facing the floor.'},
+      {id:'s_muscleup', name:'Muscle-up', tier:0, col:1, prereq:[], target:'1 rep', tip:'The same skill trained in the Pull tree — the gateway to bar and ring dynamics.'},
+      {id:'s_hftuck', name:'Human Flag (tuck)', tier:0, col:2, prereq:[], target:'3×5s', tip:'Grip a vertical pole with the body sideways, knees tucked toward the chest.'},
+      {id:'s_blstraddle', name:'Back Lever Straddle', tier:1, col:0, prereq:['s_bltuck'], target:'3×6s', tip:'Legs straight and wide, body flat and inverted.'},
+      {id:'s_wmu', name:'Weighted Muscle-up', tier:1, col:1, prereq:['s_muscleup'], target:'+10% BW', tip:'Add extra load once the bodyweight muscle-up feels smooth and controlled.'},
+      {id:'s_hfstraddle', name:'Human Flag (straddle)', tier:1, col:2, prereq:['s_hftuck'], target:'3×3s', tip:'Legs straight and split, hips fully extended out to the side.'},
+      {id:'s_blfull', name:'Full Back Lever', tier:2, col:0, prereq:['s_blstraddle'], target:'3×5s', tip:'Legs straight and together, body perfectly horizontal and inverted.'},
+      {id:'s_hffull', name:'Full Human Flag', tier:2, col:2, prereq:['s_hfstraddle'], target:'3–5s', tip:'Legs straight and together, body rigid and horizontal off the pole.'}
+    ]
+  }
+];
+
+const allNodes = {};
+categories.forEach(cat => cat.nodes.forEach(n => { n._cat = cat.id; allNodes[n.id] = n; }));
+const totalNodes = Object.keys(allNodes).length;
+
+/* ---------------- STATE ---------------- */
+let completed = new Set();
+let currentCatId = 'push';
+let selectedId = null;
+let resetArmed = false;
+
+/* ---------------- STORAGE ---------------- */
+async function loadProgress(){
+  try{
+    const res = await window.storage.get('calisthenics-progress', false);
+    if(res && res.value){ completed = new Set(JSON.parse(res.value)); }
+  }catch(e){ completed = new Set(); }
+}
+async function saveProgress(){
+  try{ await window.storage.set('calisthenics-progress', JSON.stringify([...completed]), false); }
+  catch(e){ /* ignore, state still lives in memory this session */ }
+}
+
+/* ---------------- HELPERS ---------------- */
+function computeState(node){
+  if(completed.has(node.id)) return 'completed';
+  const ready = node.prereq.every(p => completed.has(p));
+  return ready ? 'available' : 'locked';
+}
+function stateLabel(s){
+  return s==='completed' ? 'Mastered' : s==='available' ? 'Ready to train' : 'Locked';
+}
+function catDoneCount(cat){ return cat.nodes.filter(n => completed.has(n.id)).length; }
+
+/* ---------------- RENDER: TABS ---------------- */
+const tabsEl = document.getElementById('tabs');
+function renderTabs(){
+  tabsEl.innerHTML = categories.map(cat => `
+    <button class="tab ${cat.id===currentCatId?'active':''}" data-cat="${cat.id}">
+      <svg viewBox="0 0 24 24">${ICONS[cat.icon]}</svg>
+      <span class="tabName">${cat.name}</span>
+      <span class="tabFrac mono">${catDoneCount(cat)}/${cat.nodes.length}</span>
+    </button>
+  `).join('');
+  tabsEl.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentCatId = btn.dataset.cat;
+      closeSheet();
+      renderAll();
+    });
+  });
+}
+
+/* ---------------- RENDER: OVERALL ---------------- */
+function renderOverall(){
+  const done = completed.size;
+  const pct = totalNodes ? Math.round(done/totalNodes*100) : 0;
+  document.getElementById('overallText').textContent = `${done} / ${totalNodes} · ${pct}%`;
+  document.getElementById('overallBar').style.width = pct + '%';
+}
+
+/* ---------------- RENDER: CATEGORY HEADER ---------------- */
+function renderCatHeader(cat){
+  const filled = cat.icon==='skills' ? 'filled' : '';
+  document.getElementById('catHeader').innerHTML = `
+    <div class="catTitleRow">
+      <svg class="catIcon ${filled}" viewBox="0 0 24 24">${ICONS[cat.icon]}</svg>
+      <div class="catTitle">${cat.name}</div>
+    </div>
+    <p class="catBlurb">${cat.blurb}</p>
+    <div class="catProgress">${catDoneCount(cat)} / ${cat.nodes.length} skills mastered</div>
+  `;
+}
+
+/* ---------------- RENDER: TREE ---------------- */
+const treeGrid = document.getElementById('treeGrid');
+const svg = document.getElementById('connectors');
+
+function hexIcon(state, catIcon){
+  if(state==='completed') return `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${CHECK}</svg>`;
+  if(state==='locked') return `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${LOCK}</svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${ICONS[catIcon]}</svg>`;
+}
+
+function renderTree(cat){
+  treeGrid.innerHTML = cat.nodes.map(n=>{
+    const state = computeState(n);
+    return `<button class="node ${state}" data-id="${n.id}" style="grid-column:${n.col+1};grid-row:${n.tier+1}">
+      <span class="hex">${hexIcon(state, cat.icon)}</span>
+      <span class="nodeLabel">${n.name}</span>
+    </button>`;
+  }).join('');
+
+  treeGrid.querySelectorAll('.node').forEach(btn=>{
+    btn.addEventListener('click', ()=> selectNode(btn.dataset.id));
+  });
+
+  requestAnimationFrame(()=> drawEdges(cat));
+}
+
+function drawEdges(cat){
+  const gridRect = treeGrid.getBoundingClientRect();
+  svg.setAttribute('width', gridRect.width);
+  svg.setAttribute('height', gridRect.height);
+  svg.setAttribute('viewBox', `0 0 ${gridRect.width} ${gridRect.height}`);
+
+  let paths = '';
+  cat.nodes.forEach(n=>{
+    if(!n.prereq.length) return;
+    const childHex = treeGrid.querySelector(`[data-id="${n.id}"] .hex`);
+    if(!childHex) return;
+    const cr = childHex.getBoundingClientRect();
+    const cx = cr.left + cr.width/2 - gridRect.left;
+    const cy = cr.top - gridRect.top + 4;
+
+    n.prereq.forEach(pid=>{
+      const parentHex = treeGrid.querySelector(`[data-id="${pid}"] .hex`);
+      if(!parentHex) return;
+      const pr = parentHex.getBoundingClientRect();
+      const px = pr.left + pr.width/2 - gridRect.left;
+      const py = pr.bottom - gridRect.top - 4;
+
+      const parentDone = completed.has(pid);
+      const childDone = completed.has(n.id);
+      let cls = 'dim';
+      if(parentDone && childDone) cls = 'lit-teal';
+      else if(parentDone) cls = 'lit-amber';
+
+      const midY = (py + cy) / 2;
+      const d = `M ${px} ${py} C ${px} ${midY}, ${cx} ${midY}, ${cx} ${cy}`;
+      const stroke = cls==='lit-teal' ? 'var(--teal)' : cls==='lit-amber' ? 'var(--amber)' : 'var(--line)';
+      const glow = cls==='dim' ? 'none' : `drop-shadow(0 0 4px ${cls==='lit-teal' ? 'var(--teal-glow)' : 'var(--amber-glow)'})`;
+      const width = cls==='dim' ? 1.5 : 2.5;
+      paths += `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${width}" style="filter:${glow}" stroke-linecap="round"/>`;
+    });
+  });
+  svg.innerHTML = paths;
+}
+
+/* ---------------- SHEET ---------------- */
+const sheet = document.getElementById('sheet');
+const backdrop = document.getElementById('backdrop');
+const sheetContent = document.getElementById('sheetContent');
+
+function selectNode(id){
+  selectedId = id;
+  openSheet();
+}
+
+function openSheet(){
+  const node = allNodes[selectedId];
+  const cat = categories.find(c=>c.id===node._cat);
+  const state = computeState(node);
+
+  let html = `
+    <div class="sheetEyebrow">${cat.name.toUpperCase()} · TIER ${node.tier+1}</div>
+    <h2 class="sheetTitle">${node.name}</h2>
+    <div class="sheetStatus ${state}">${stateLabel(state)}</div>
+    <div class="sheetTarget"><span>Target</span><strong class="mono">${node.target}</strong></div>
+    <p class="sheetTip">${node.tip}</p>
+  `;
+
+  if(state==='locked'){
+    const reqNames = node.prereq.map(p=>allNodes[p].name).join(', ');
+    html += `<div class="sheetReq">Unlock this by mastering: <strong>${reqNames}</strong></div>`;
+  } else {
+    const label = state==='completed' ? 'Mark as not yet trained' : 'Mark as mastered ✓';
+    const cls = state==='completed' ? 'undo' : 'do';
+    html += `<button class="sheetAction ${cls}" id="toggleBtn">${label}</button>`;
+  }
+
+  sheetContent.innerHTML = html;
+  sheet.classList.add('open');
+  backdrop.classList.add('open');
+
+  if(state!=='locked'){
+    document.getElementById('toggleBtn').addEventListener('click', ()=> toggleComplete(node.id));
+  }
+}
+
+function closeSheet(){
+  sheet.classList.remove('open');
+  backdrop.classList.remove('open');
+  selectedId = null;
+}
+
+function toggleComplete(id){
+  if(completed.has(id)) completed.delete(id);
+  else completed.add(id);
+  saveProgress();
+  renderAll();
+  selectedId = id;
+  openSheet();
+}
+
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+backdrop.addEventListener('click', closeSheet);
+
+/* ---------------- RESET ---------------- */
+const resetBtn = document.getElementById('resetBtn');
+resetBtn.addEventListener('click', ()=>{
+  if(!resetArmed){
+    resetArmed = true;
+    resetBtn.textContent = 'Tap again to confirm';
+    resetBtn.classList.add('confirming');
+    setTimeout(()=>{
+      resetArmed = false;
+      resetBtn.textContent = 'Reset progress';
+      resetBtn.classList.remove('confirming');
+    }, 3000);
+  } else {
+    completed = new Set();
+    saveProgress();
+    resetArmed = false;
+    resetBtn.textContent = 'Reset progress';
+    resetBtn.classList.remove('confirming');
+    closeSheet();
+    renderAll();
+  }
+});
+
+/* ---------------- RENDER ALL ---------------- */
+function renderAll(){
+  const cat = categories.find(c=>c.id===currentCatId);
+  renderTabs();
+  renderOverall();
+  renderCatHeader(cat);
+  renderTree(cat);
+}
+
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=>{
+    const cat = categories.find(c=>c.id===currentCatId);
+    drawEdges(cat);
+  }, 120);
+});
+
+/* ---------------- INIT ---------------- */
+(async function init(){
+  await loadProgress();
+  renderAll();
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(()=>{
+      const cat = categories.find(c=>c.id===currentCatId);
+      drawEdges(cat);
+    });
+  }
+})();
+
+})();
+</script>
+</body>
+</html>
