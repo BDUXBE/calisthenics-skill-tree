@@ -21,6 +21,7 @@
   --teal:#35c9a6;
   --teal-soft:rgba(53,201,166,.16);
   --teal-glow:rgba(53,201,166,.6);
+  --red:#e85858;
 }
 
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -48,9 +49,23 @@ h1{
   font-family:'Oswald',sans-serif; font-weight:700; text-transform:uppercase;
   letter-spacing:.03em; font-size:20px; margin:2px 0 0;
 }
+.headerBtns{display:flex;align-items:center;gap:6px;}
 .resetBtn{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; padding:6px 4px; border-radius:6px;}
 .resetBtn:active{background:var(--surface2);}
 .resetBtn.confirming{color:var(--amber);}
+
+/* ---------- GitHub sync button ---------- */
+.ghBtn{
+  font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em;
+  padding:5px 8px; border-radius:6px; display:flex; align-items:center; gap:4px;
+  border:1px solid transparent;
+}
+.ghBtn:active{background:var(--surface2);}
+.ghBtn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;}
+.ghBtn.connected{color:var(--teal); border-color:rgba(53,201,166,.25);}
+.ghBtn.syncing svg{animation:spin .9s linear infinite;}
+.ghBtn.error{color:var(--red); border-color:rgba(232,88,88,.25);}
+@keyframes spin{to{transform:rotate(360deg);}}
 
 .overallWrap{margin-top:14px;}
 .overallLabel{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:6px;}
@@ -175,8 +190,40 @@ svg#connectors{position:absolute; top:0; left:0; width:100%; height:100%; overfl
 .sheetAction.do{background:var(--amber); color:#1a1204;}
 .sheetAction.undo{background:var(--surface2); color:var(--muted); border:1px solid var(--line);}
 .sheetAction:active{transform:scale(.98);}
+.sheetAction:disabled{opacity:.5; cursor:default; transform:none;}
 
 footer.hint{text-align:center; font-size:11px; color:var(--muted2); padding:6px 20px 26px;}
+
+/* ---------- GitHub sync modal ---------- */
+.ghOverlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:50;
+  display:flex; align-items:center; justify-content:center; padding:20px;
+  opacity:0; pointer-events:none; transition:opacity .2s ease;
+}
+.ghOverlay.open{opacity:1; pointer-events:auto;}
+.ghBox{
+  background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:22px 20px; width:100%; max-width:360px;
+  transform:translateY(10px); transition:transform .25s cubic-bezier(.2,.9,.3,1);
+}
+.ghOverlay.open .ghBox{transform:translateY(0);}
+.ghBoxTop{display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;}
+.ghBoxTitle{font-family:'Oswald',sans-serif; font-weight:600; font-size:17px; text-transform:uppercase; letter-spacing:.02em;}
+.ghDesc{font-size:12.5px; color:var(--muted); margin:8px 0 14px; line-height:1.55;}
+.ghDesc a{color:var(--amber); text-decoration:none;}
+.ghDesc a:hover{text-decoration:underline;}
+.patInput{
+  width:100%; background:var(--surface2); border:1px solid var(--line);
+  color:var(--chalk); border-radius:8px; padding:10px 12px;
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+  outline:none; letter-spacing:.04em;
+}
+.patInput:focus{border-color:var(--amber);}
+.ghError{font-size:11.5px; color:var(--red); min-height:18px; margin-top:6px;}
+.ghBtns{display:flex; gap:8px; margin-top:12px;}
+.ghBtns .sheetAction{flex:1;}
+.ghConnectedInfo{font-size:11.5px; color:var(--teal); margin-top:10px; text-align:center; line-height:1.5;}
+.ghConnectedInfo a{color:var(--teal);}
 </style>
 </head>
 <body>
@@ -187,7 +234,14 @@ footer.hint{text-align:center; font-size:11px; color:var(--muted2); padding:6px 
       <div class="eyebrow">Calisthenics Progression</div>
       <h1>Skill Tree</h1>
     </div>
-    <button class="resetBtn" id="resetBtn">Reset progress</button>
+    <div class="headerBtns">
+      <button class="resetBtn" id="resetBtn">Reset progress</button>
+      <button class="ghBtn" id="ghBtn" title="Sync progress to GitHub Gist">
+        <!-- sync arrows icon -->
+        <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+        <span id="ghBtnLabel">GitHub</span>
+      </button>
+    </div>
   </div>
   <div class="overallWrap">
     <div class="overallLabel"><span>Overall mastery</span><strong id="overallText">0 / 0 · 0%</strong></div>
@@ -216,6 +270,27 @@ footer.hint{text-align:center; font-size:11px; color:var(--muted2); padding:6px 
 <div class="sheet" id="sheet">
   <div class="sheetTopRow"><button class="sheetClose" id="sheetClose">&#10005;</button></div>
   <div id="sheetContent"></div>
+</div>
+
+<!-- GitHub sync modal -->
+<div class="ghOverlay" id="ghOverlay">
+  <div class="ghBox">
+    <div class="ghBoxTop">
+      <div class="ghBoxTitle">GitHub Sync</div>
+      <button class="sheetClose" id="ghClose">&#10005;</button>
+    </div>
+    <p class="ghDesc">
+      Save progress across devices via a private GitHub Gist.<br>
+      Create a <a href="https://github.com/settings/tokens/new?scopes=gist&description=Calisthenics+Skill+Tree" target="_blank" rel="noopener">Personal Access Token</a> with <strong>gist</strong> scope, then paste it below.
+    </p>
+    <input class="patInput" type="password" id="patInput" placeholder="ghp_…" autocomplete="off" spellcheck="false">
+    <div class="ghError" id="ghError"></div>
+    <div class="ghBtns">
+      <button class="sheetAction do" id="connectBtn">Connect</button>
+      <button class="sheetAction undo" id="disconnectBtn" style="display:none">Disconnect</button>
+    </div>
+    <div class="ghConnectedInfo" id="ghConnectedInfo"></div>
+  </div>
 </div>
 
 <script>
@@ -332,17 +407,177 @@ let currentCatId = 'push';
 let selectedId = null;
 let resetArmed = false;
 
-/* ---------------- STORAGE ---------------- */
+/* ---------------- STORAGE / GITHUB SYNC ---------------- */
+const LS_KEY  = 'calisthenics-progress';
+const LS_PAT  = 'calisthenics-gh-pat';
+const LS_GIST = 'calisthenics-gist-id';
+const GIST_FILE = 'calisthenics-progress.json';
+
+let ghPat  = localStorage.getItem(LS_PAT)  || '';
+let gistId = localStorage.getItem(LS_GIST) || '';
+let syncStatus = 'idle'; // idle | syncing | ok | error
+
+function ghHeaders(){
+  return {
+    Authorization: `token ${ghPat}`,
+    Accept: 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json'
+  };
+}
+
 async function loadProgress(){
-  try{
-    const res = await window.storage.get('calisthenics-progress', false);
-    if(res && res.value){ completed = new Set(JSON.parse(res.value)); }
-  }catch(e){ completed = new Set(); }
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw){ try{ completed = new Set(JSON.parse(raw)); }catch(e){} }
+
+  if(ghPat && gistId){
+    try{
+      const r = await fetch(`https://api.github.com/gists/${gistId}`, { headers: ghHeaders() });
+      if(r.ok){
+        const d = await r.json();
+        const content = d.files?.[GIST_FILE]?.content;
+        if(content){
+          completed = new Set(JSON.parse(content));
+          localStorage.setItem(LS_KEY, content);
+        }
+      }
+    }catch(e){}
+  }
 }
+
 async function saveProgress(){
-  try{ await window.storage.set('calisthenics-progress', JSON.stringify([...completed]), false); }
-  catch(e){ /* ignore, state still lives in memory this session */ }
+  const json = JSON.stringify([...completed]);
+  localStorage.setItem(LS_KEY, json);
+  if(!ghPat){ syncStatus = 'idle'; updateSyncBtn(); return; }
+
+  syncStatus = 'syncing'; updateSyncBtn();
+  try{
+    const fileBody = { files: { [GIST_FILE]: { content: json } } };
+
+    if(!gistId){
+      const r = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: ghHeaders(),
+        body: JSON.stringify({ ...fileBody, description: 'Calisthenics Skill Tree Progress', public: false })
+      });
+      if(r.ok){
+        const d = await r.json();
+        gistId = d.id;
+        localStorage.setItem(LS_GIST, gistId);
+        syncStatus = 'ok';
+      } else {
+        syncStatus = 'error';
+      }
+    } else {
+      const r = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method: 'PATCH', headers: ghHeaders(), body: JSON.stringify(fileBody)
+      });
+      syncStatus = r.ok ? 'ok' : 'error';
+    }
+  }catch(e){ syncStatus = 'error'; }
+  updateSyncBtn();
 }
+
+/* ---------------- GITHUB SYNC UI ---------------- */
+const ghBtn     = document.getElementById('ghBtn');
+const ghBtnLbl  = document.getElementById('ghBtnLabel');
+const ghOverlay = document.getElementById('ghOverlay');
+const ghClose   = document.getElementById('ghClose');
+const patInput  = document.getElementById('patInput');
+const ghError   = document.getElementById('ghError');
+const connectBtn    = document.getElementById('connectBtn');
+const disconnectBtn = document.getElementById('disconnectBtn');
+const ghConnectedInfo = document.getElementById('ghConnectedInfo');
+
+function updateSyncBtn(){
+  ghBtn.className = 'ghBtn' + (!ghPat ? '' : syncStatus === 'error' ? ' error' : syncStatus === 'syncing' ? ' connected syncing' : ' connected');
+  ghBtnLbl.textContent = !ghPat ? 'GitHub' : syncStatus === 'error' ? 'Sync error' : syncStatus === 'syncing' ? 'Syncing…' : 'Synced';
+}
+
+function openGhModal(){
+  patInput.value = ghPat;
+  ghError.textContent = '';
+  connectBtn.textContent = 'Connect';
+  connectBtn.disabled = false;
+  connectBtn.style.display = ghPat ? 'none' : '';
+  disconnectBtn.style.display = ghPat ? '' : 'none';
+  ghConnectedInfo.innerHTML = ghPat && gistId
+    ? `Connected · <a href="https://gist.github.com/${gistId}" target="_blank" rel="noopener">View Gist ↗</a>`
+    : ghPat ? 'Connected — saving new Gist on next change.' : '';
+  ghOverlay.classList.add('open');
+  if(!ghPat) patInput.focus();
+}
+
+function closeGhModal(){ ghOverlay.classList.remove('open'); }
+
+async function connectGitHub(){
+  const pat = patInput.value.trim();
+  if(!pat){ ghError.textContent = 'Please paste your token.'; return; }
+
+  ghError.textContent = '';
+  connectBtn.textContent = 'Connecting…';
+  connectBtn.disabled = true;
+
+  try{
+    const check = await fetch('https://api.github.com/user', {
+      headers: { Authorization: `token ${pat}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if(!check.ok){
+      ghError.textContent = 'Token invalid or missing gist scope.';
+      connectBtn.textContent = 'Connect'; connectBtn.disabled = false;
+      return;
+    }
+
+    // Search the user's gists for an existing progress file
+    let foundGistId = '';
+    try{
+      const gr = await fetch('https://api.github.com/gists?per_page=100', {
+        headers: { Authorization: `token ${pat}`, Accept: 'application/vnd.github.v3+json' }
+      });
+      if(gr.ok){
+        const gists = await gr.json();
+        const match = gists.find(g => g.files && g.files[GIST_FILE]);
+        if(match) foundGistId = match.id;
+      }
+    }catch(e){}
+
+    ghPat  = pat;
+    gistId = foundGistId;
+    localStorage.setItem(LS_PAT, ghPat);
+    if(gistId) localStorage.setItem(LS_GIST, gistId);
+    else localStorage.removeItem(LS_GIST);
+
+    closeGhModal();
+    updateSyncBtn();
+
+    if(foundGistId){
+      // Pull existing progress from Gist
+      await loadProgress();
+      renderAll();
+    } else {
+      // Create new Gist from local progress
+      await saveProgress();
+    }
+  }catch(e){
+    ghError.textContent = 'Network error. Check your connection.';
+    connectBtn.textContent = 'Connect'; connectBtn.disabled = false;
+  }
+}
+
+function disconnectGitHub(){
+  ghPat = ''; gistId = '';
+  localStorage.removeItem(LS_PAT);
+  localStorage.removeItem(LS_GIST);
+  syncStatus = 'idle';
+  closeGhModal();
+  updateSyncBtn();
+}
+
+ghBtn.addEventListener('click', openGhModal);
+ghClose.addEventListener('click', closeGhModal);
+ghOverlay.addEventListener('click', e => { if(e.target === ghOverlay) closeGhModal(); });
+connectBtn.addEventListener('click', connectGitHub);
+disconnectBtn.addEventListener('click', disconnectGitHub);
+patInput.addEventListener('keydown', e => { if(e.key === 'Enter') connectGitHub(); });
 
 /* ---------------- HELPERS ---------------- */
 function computeState(node){
@@ -465,10 +700,7 @@ const sheet = document.getElementById('sheet');
 const backdrop = document.getElementById('backdrop');
 const sheetContent = document.getElementById('sheetContent');
 
-function selectNode(id){
-  selectedId = id;
-  openSheet();
-}
+function selectNode(id){ selectedId = id; openSheet(); }
 
 function openSheet(){
   const node = allNodes[selectedId];
@@ -562,6 +794,7 @@ window.addEventListener('resize', ()=>{
 
 /* ---------------- INIT ---------------- */
 (async function init(){
+  updateSyncBtn();
   await loadProgress();
   renderAll();
   if(document.fonts && document.fonts.ready){
